@@ -3,51 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ação VET - Gestão de Prontuários</title>
+    <title>Ação VET - Mongaguá</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
     <style>
         :root { --primary: #1a5276; --secondary: #27ae60; --accent: #f39c12; --bg: #eef2f3; --danger: #e74c3c; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; }
-        
-        /* Navbar */
-        .navbar { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .btn-gestor { background: var(--accent); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .navbar { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .btn-gestor { background: var(--accent); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .btn-logout { background: var(--danger) !important; }
-
         .container { max-width: 950px; margin: 20px auto; padding: 0 15px; }
         .search-box { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         #searchInput { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-
         .grid-pacientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
         .card { background: white; padding: 15px; border-radius: 10px; border-left: 6px solid var(--secondary); cursor: pointer; transition: 0.2s; position: relative; }
-        .card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        
         .status-badge { font-size: 0.7em; padding: 4px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; float: right; }
         .st-tratamento { background: #d6eaf8; color: #2e86c1; }
         .st-recuperado { background: #d4f8e2; color: #1e8449; }
         .st-urgencia { background: #fadbd8; color: #c0392b; }
         .st-cirurgia { background: #fef9e7; color: #f39c12; }
-
-        /* Modal da Ficha */
         .modal-ficha { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; }
-        .modal-header { max-width: 950px; margin: auto; display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 2px solid #eee; align-items: center; }
-
         .tabs { display: flex; gap: 5px; max-width: 950px; margin: 15px auto; overflow-x: auto; padding: 0 15px; }
         .tab-btn { padding: 12px 20px; border: none; background: #eee; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: bold; }
         .tab-btn.active { background: var(--primary); color: white; }
-
         .form-section { display: none; max-width: 950px; margin: auto; padding: 20px; }
         .form-section.active { display: block; }
-
         .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .full { grid-column: span 2; }
         label { font-size: 0.85em; font-weight: bold; color: #444; margin-bottom: 5px; display: block; }
         input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        
         .timeline { background: #fdfdfd; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #eee; }
         .entry { background: white; padding: 12px; border-bottom: 1px solid #eee; margin-bottom: 8px; border-left: 4px solid var(--secondary); font-size: 0.9em; }
-        
-        .footer-ficha { max-width: 950px; margin: 20px auto; padding: 20px; text-align: right; }
-        .btn-save { background: var(--secondary); color: white; border: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
@@ -59,22 +47,19 @@
 
 <div class="container">
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Pesquisar por animal, tutor ou status..." onkeyup="filtrarPacientes()">
+        <input type="text" id="searchInput" placeholder="Pesquisar..." onkeyup="filtrarPacientes()">
     </div>
-    
-    <div class="grid-pacientes" id="listaPacientes"></div>
-
+    <div class="grid-pacientes" id="listaPacientes">Sincronizando com a nuvem...</div>
     <div style="text-align: center; margin-top: 20px;">
-        <button class="btn-gestor" id="btnNovo" style="display:none; padding: 15px 40px;" onclick="abrirFicha(null)">+ Iniciar Novo Prontuário</button>
+        <button class="btn-gestor" id="btnNovo" style="display:none; padding: 15px 40px;" onclick="abrirFicha(null)">+ Novo Prontuário</button>
     </div>
 </div>
 
 <div id="modalFicha" class="modal-ficha">
-    <div class="modal-header">
-        <h2 id="tituloFicha">Prontuário Único</h2>
-        <button onclick="fecharFicha()" style="padding: 10px; cursor: pointer; background: #eee; border: none; border-radius: 5px;">✖ Fechar</button>
+    <div class="modal-header" style="max-width:950px; margin:auto; display:flex; justify-content:space-between; padding:20px; align-items:center;">
+        <h2>Prontuário Digital</h2>
+        <button onclick="fecharFicha()" style="padding:10px; cursor:pointer; background:#eee; border:none; border-radius:5px;">✖ Fechar</button>
     </div>
-
     <div class="tabs">
         <button class="tab-btn active" onclick="mudarAba(event, 'aba_tutor')">1. Tutor</button>
         <button class="tab-btn" onclick="mudarAba(event, 'aba_animal')">2. Animal</button>
@@ -84,39 +69,38 @@
 
     <div id="aba_tutor" class="form-section active">
         <div class="grid-form">
-            <div class="full"><label>Nome do Tutor</label><input type="text" id="f_tutor"></div>
+            <div class="full"><label>Tutor</label><input type="text" id="f_tutor"></div>
             <div><label>CPF</label><input type="text" id="f_cpf"></div>
-            <div><label>Renda Mensal</label><input type="number" id="f_renda"></div>
-            <div class="full"><label>Local Atendimento</label><input type="text" id="f_local" value="Mongaguá, SP"></div>
+            <div><label>Renda</label><input type="number" id="f_renda"></div>
+            <div class="full"><label>Local</label><input type="text" id="f_local" value="Mongaguá, SP"></div>
         </div>
     </div>
 
     <div id="aba_animal" class="form-section">
         <div class="grid-form">
-            <div class="full">
-                <label>Status Atual do Paciente</label>
+            <div class="full"><label>Status</label>
                 <select id="f_status">
                     <option value="st-tratamento">Em Tratamento</option>
-                    <option value="st-recuperado">Recuperado / Alta</option>
-                    <option value="st-urgencia">Urgência / Emergência</option>
-                    <option value="st-cirurgia">Aguardando Cirurgia</option>
+                    <option value="st-recuperado">Recuperado</option>
+                    <option value="st-urgencia">Urgência</option>
+                    <option value="st-cirurgia">Cirurgia</option>
                 </select>
             </div>
-            <div><label>Nome do Animal</label><input type="text" id="f_animal"></div>
+            <div><label>Animal</label><input type="text" id="f_animal"></div>
             <div><label>Espécie</label><input type="text" id="f_esp"></div>
             <div><label>Raça</label><input type="text" id="f_raca"></div>
-            <div><label>Idade Estimada</label><input type="text" id="f_idade"></div>
+            <div><label>Idade</label><input type="text" id="f_idade"></div>
         </div>
     </div>
 
     <div id="aba_terapeutica" class="form-section">
         <div class="grid-form" style="background:#f8f9fa; padding:15px; border-radius:8px;">
-            <div class="full"><label>Diagnóstico Definitivo</label><input type="text" id="f_diag"></div>
-            <div><label>Médico Vet.</label><input type="text" id="m_vet_nome"></div>
-            <div><label>CRMV</label><input type="text" id="m_vet_crmv"></div>
-            <div><label>Medicação/Dosagem</label><input type="text" id="m_desc"></div>
-            <div><label>Valor (R$)</label><input type="number" id="m_valor" step="0.01"></div>
-            <div class="full"><button type="button" class="btn-gestor" id="btnAddMed" onclick="addLinha('med')">+ Registrar na Ficha</button></div>
+            <div class="full"><label>Diagnóstico</label><input type="text" id="f_diag"></div>
+            <div><label>Vet.</label><input type="text" id="m_vet"></div>
+            <div><label>CRMV</label><input type="text" id="m_crmv"></div>
+            <div><label>Medicação</label><input type="text" id="m_desc"></div>
+            <div><label>Valor (R$)</label><input type="number" id="m_val" step="0.01"></div>
+            <div class="full"><button type="button" class="btn-gestor" id="btnAddMed" onclick="addHist('med')">+ Registrar na Ficha</button></div>
         </div>
         <div class="timeline" id="lista_med"></div>
     </div>
@@ -124,86 +108,84 @@
     <div id="aba_evolucao" class="form-section">
         <div class="grid-form" style="background:#f8f9fa; padding:15px; border-radius:8px;">
             <div><label>Data</label><input type="date" id="e_data"></div>
-            <div><label>Médico Vet.</label><input type="text" id="e_vet_nome"></div>
-            <div><label>CRMV</label><input type="text" id="e_vet_crmv"></div>
-            <div class="full"><label>Relato de Evolução</label><textarea id="e_relato" rows="3"></textarea></div>
-            <div class="full"><button type="button" class="btn-gestor" id="btnAddEvo" onclick="addLinha('evo')">+ Adicionar Evolução</button></div>
+            <div><label>Vet.</label><input type="text" id="e_vet"></div>
+            <div><label>CRMV</label><input type="text" id="e_crmv"></div>
+            <div class="full"><label>Relato</label><textarea id="e_relato"></textarea></div>
+            <div class="full"><button type="button" class="btn-gestor" id="btnAddEvo" onclick="addHist('evo')">+ Adicionar Evolução</button></div>
         </div>
         <div class="timeline" id="lista_evo"></div>
     </div>
 
-    <div class="footer-ficha">
-        <button class="btn-save" id="btnSalvar" onclick="salvarProntuario()">💾 Salvar Prontuário Único</button>
+    <div class="footer-ficha" style="max-width:950px; margin:auto; padding:20px; text-align:right;">
+        <button class="btn-gestor" id="btnSalvar" style="background:var(--secondary); display:none;" onclick="salvarFirebase()">💾 Salvar na Nuvem</button>
     </div>
 </div>
 
 <script>
-    const SENHA_MESTRA = "1234";
+    // Suas chaves reais do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAu26gkLS-a3gIuVeItwWBg92Cm7l2cMHI",
+      authDomain: "acao-vet.firebaseapp.com",
+      projectId: "acao-vet",
+      storageBucket: "acao-vet.firebasestorage.app",
+      messagingSenderId: "1041719589005",
+      appId: "1:1041719589005:web:26ac4b6358f21cd2c10ac4",
+      measurementId: "G-C4989LM0LV"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
     let modoGestor = false;
-    let bancoDados = JSON.parse(localStorage.getItem('acaovet_final')) || [];
     let fichaAtiva = null;
+
+    function monitorarDados() {
+        db.collection("pacientes").onSnapshot((snapshot) => {
+            const pacientes = [];
+            snapshot.forEach(doc => pacientes.push({ id_doc: doc.id, ...doc.data() }));
+            renderizarLista(pacientes);
+        });
+    }
+
+    function renderizarLista(dados) {
+        const nomesStatus = { 'st-tratamento': 'Em Tratamento', 'st-recuperado': 'Recuperado', 'st-urgencia': 'Urgência', 'st-cirurgia': 'Cirurgia' };
+        document.getElementById('listaPacientes').innerHTML = dados.map(p => `
+            <div class="card" onclick="abrirFicha('${p.id_doc}')">
+                <span class="status-badge ${p.status}">${nomesStatus[p.status]}</span>
+                <h3>🐾 ${p.animal || 'Sem nome'}</h3>
+                <p>Tutor: ${p.tutor || 'Não informado'}</p>
+            </div>
+        `).join('');
+    }
 
     function gerenciarLogin() {
         if(!modoGestor) {
-            if(prompt("Senha do Gestor:") === SENHA_MESTRA) {
+            if(prompt("Senha:") === "1234") {
                 modoGestor = true;
-                atualizarInterfaceModo();
-                alert("Modo Gestor Ativo!");
-            } else {
-                alert("Senha incorreta!");
+                document.getElementById('btnAcesso').innerText = "🔒 Sair do Gestor";
+                document.getElementById('btnAcesso').classList.add('btn-logout');
+                document.getElementById('btnNovo').style.display = 'inline-block';
+                document.getElementById('btnSalvar').style.display = 'inline-block';
+                if(fichaAtiva) statusCampos(false);
             }
         } else {
-            if(confirm("Deseja sair do modo gestor?")) {
-                modoGestor = false;
-                atualizarInterfaceModo();
-                if(document.getElementById('modalFicha').style.display === 'block') {
-                    statusCampos(true);
-                }
-                alert("Você saiu do modo gestor.");
-            }
+            location.reload();
         }
     }
 
-    function atualizarInterfaceModo() {
-        const btn = document.getElementById('btnAcesso');
-        const btnNovo = document.getElementById('btnNovo');
-        const btnSalvar = document.getElementById('btnSalvar');
-
-        if(modoGestor) {
-            btn.innerText = "🔒 Sair do Modo Gestor";
-            btn.classList.add('btn-logout');
-            btnNovo.style.display = 'inline-block';
-            btnSalvar.style.display = 'inline-block';
-        } else {
-            btn.innerText = "🔓 Acesso Gestor";
-            btn.classList.remove('btn-logout');
-            btnNovo.style.display = 'none';
-            btnSalvar.style.display = 'none';
-        }
-    }
-
-    function mudarAba(evt, abaId) {
-        const sections = document.getElementsByClassName("form-section");
-        for (let s of sections) s.classList.remove("active");
-        const btns = document.getElementsByClassName("tab-btn");
-        for (let b of btns) b.classList.remove("active");
-        document.getElementById(abaId).classList.add("active");
-        evt.currentTarget.classList.add("active");
-    }
-
-    function abrirFicha(id) {
+    async function abrirFicha(id) {
         document.getElementById('modalFicha').style.display = 'block';
         if(id) {
-            fichaAtiva = bancoDados.find(p => p.id === id);
-            carregarDadosFicha(fichaAtiva);
+            const doc = await db.collection("pacientes").doc(id).get();
+            fichaAtiva = { id_doc: doc.id, ...doc.data() };
+            carregarCampos(fichaAtiva);
         } else {
-            fichaAtiva = { id: Date.now(), med: [], evo: [], status: 'st-tratamento' };
-            limparFicha();
+            fichaAtiva = { med: [], evo: [], status: 'st-tratamento' };
+            limparCampos();
         }
         statusCampos(!modoGestor);
     }
 
-    function carregarDadosFicha(p) {
+    function carregarCampos(p) {
         document.getElementById('f_tutor').value = p.tutor || "";
         document.getElementById('f_animal').value = p.animal || "";
         document.getElementById('f_status').value = p.status || "st-tratamento";
@@ -213,73 +195,71 @@
         document.getElementById('f_esp').value = p.esp || "";
         document.getElementById('f_raca').value = p.raca || "";
         document.getElementById('f_idade').value = p.idade || "";
-        renderizarTimelines();
+        renderHist();
     }
 
-    function addLinha(tipo) {
+    function addHist(tipo) {
         if(tipo === 'med') {
-            const entry = `${document.getElementById('m_desc').value} - Vet: ${document.getElementById('m_vet_nome').value} (CRMV: ${document.getElementById('m_vet_crmv').value}) - R$ ${document.getElementById('m_valor').value}`;
+            const entry = `${document.getElementById('m_desc').value} - R$ ${document.getElementById('m_val').value} (${document.getElementById('m_vet').value})`;
             fichaAtiva.med.push(entry);
         } else {
-            const entry = `<b>${document.getElementById('e_data').value}</b>: ${document.getElementById('e_relato').value} (Assinado: ${document.getElementById('e_vet_nome').value} - CRMV: ${document.getElementById('e_vet_crmv').value})`;
+            const entry = `<b>${document.getElementById('e_data').value}</b>: ${document.getElementById('e_relato').value}`;
             fichaAtiva.evo.push(entry);
         }
-        renderizarTimelines();
+        renderHist();
     }
 
-    function renderizarTimelines() {
-        document.getElementById('lista_med').innerHTML = "<strong>Histórico Médico:</strong>" + fichaAtiva.med.map(m => `<div class="entry">${m}</div>`).join('');
-        document.getElementById('lista_evo').innerHTML = "<strong>Histórico Evolução:</strong>" + fichaAtiva.evo.map(e => `<div class="entry">${e}</div>`).join('');
+    function renderHist() {
+        document.getElementById('lista_med').innerHTML = fichaAtiva.med.map(m => `<div class="entry">${m}</div>`).join('');
+        document.getElementById('lista_evo').innerHTML = fichaAtiva.evo.map(e => `<div class="entry">${e}</div>`).join('');
     }
 
-    function salvarProntuario() {
-        fichaAtiva.tutor = document.getElementById('f_tutor').value;
-        fichaAtiva.animal = document.getElementById('f_animal').value;
-        fichaAtiva.status = document.getElementById('f_status').value;
-        fichaAtiva.diag = document.getElementById('f_diag').value;
-        fichaAtiva.cpf = document.getElementById('f_cpf').value;
-        fichaAtiva.renda = document.getElementById('f_renda').value;
-        fichaAtiva.esp = document.getElementById('f_esp').value;
-        fichaAtiva.raca = document.getElementById('f_raca').value;
-        fichaAtiva.idade = document.getElementById('f_idade').value;
-
-        const idx = bancoDados.findIndex(b => b.id === fichaAtiva.id);
-        if(idx > -1) bancoDados[idx] = fichaAtiva;
-        else bancoDados.push(fichaAtiva);
-        
-        localStorage.setItem('acaovet_final', JSON.stringify(bancoDados));
+    async function salvarFirebase() {
+        const dados = {
+            tutor: document.getElementById('f_tutor').value,
+            animal: document.getElementById('f_animal').value,
+            status: document.getElementById('f_status').value,
+            diag: document.getElementById('f_diag').value,
+            cpf: document.getElementById('f_cpf').value,
+            renda: document.getElementById('f_renda').value,
+            esp: document.getElementById('f_esp').value,
+            raca: document.getElementById('f_raca').value,
+            idade: document.getElementById('f_idade').value,
+            med: fichaAtiva.med,
+            evo: fichaAtiva.evo
+        };
+        if(fichaAtiva.id_doc) await db.collection("pacientes").doc(fichaAtiva.id_doc).update(dados);
+        else await db.collection("pacientes").add(dados);
+        alert("Sincronizado!");
         fecharFicha();
-        renderizarLista();
     }
 
-    function renderizarLista(dados = bancoDados) {
-        const nomesStatus = { 'st-tratamento': 'Em Tratamento', 'st-recuperado': 'Recuperado', 'st-urgencia': 'Urgência', 'st-cirurgia': 'Cirurgia' };
-        const lista = document.getElementById('listaPacientes');
-        lista.innerHTML = dados.map(p => `
-            <div class="card" onclick="abrirFicha(${p.id})">
-                <span class="status-badge ${p.status}">${nomesStatus[p.status]}</span>
-                <h3>🐾 ${p.animal || 'Sem nome'}</h3>
-                <p><b>Tutor:</b> ${p.tutor || 'Não informado'}</p>
-                <small>Diagnóstico: ${p.diag || 'Pendente'}</small>
-            </div>
-        `).join('');
+    function mudarAba(evt, id) {
+        const sect = document.getElementsByClassName("form-section");
+        for (let s of sect) s.classList.remove("active");
+        const btns = document.getElementsByClassName("tab-btn");
+        for (let b of btns) b.classList.remove("active");
+        document.getElementById(id).classList.add("active");
+        evt.currentTarget.classList.add("active");
     }
 
     function fecharFicha() { document.getElementById('modalFicha').style.display = 'none'; }
-    function statusCampos(bloqueado) { document.querySelectorAll('input, textarea, select, #btnAddMed, #btnAddEvo').forEach(i => i.disabled = bloqueado); }
-    function limparFicha() { document.querySelectorAll('input, textarea').forEach(i => i.value = ""); renderizarTimelines(); }
+    function statusCampos(bloq) { document.querySelectorAll('input, textarea, select, button[id^="btnAdd"]').forEach(i => i.disabled = bloq); }
+    function limparCampos() { document.querySelectorAll('input, textarea').forEach(i => i.value = ""); renderHist(); }
     
     function filtrarPacientes() {
         const termo = document.getElementById('searchInput').value.toLowerCase();
-        const filtrados = bancoDados.filter(p => 
-            p.tutor?.toLowerCase().includes(termo) || 
-            p.animal?.toLowerCase().includes(termo) ||
-            p.diag?.toLowerCase().includes(termo)
-        );
-        renderizarLista(filtrados);
+        db.collection("pacientes").get().then(snap => {
+            const filtrados = [];
+            snap.forEach(doc => {
+                const p = doc.data();
+                if(p.tutor?.toLowerCase().includes(termo) || p.animal?.toLowerCase().includes(termo)) filtrados.push({ id_doc: doc.id, ...p });
+            });
+            renderizarLista(filtrados);
+        });
     }
 
-    renderizarLista();
+    monitorarDados();
 </script>
 </body>
 </html>
