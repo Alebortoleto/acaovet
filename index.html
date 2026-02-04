@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ação VET - Prontuários</title>
+    <style>
+        :root { --primary: #1a5276; --secondary: #27ae60; --accent: #f39c12; --bg: #eef2f3; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        
+        .navbar { background: var(--primary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .btn-gestor { background: var(--accent); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+        .container { max-width: 950px; margin: 20px auto; padding: 0 15px; }
+        .search-box { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #searchInput { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+
+        .grid-pacientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 10px; border-left: 6px solid var(--secondary); cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card:hover { transform: scale(1.02); }
+
+        /* Modal da Ficha */
+        .modal-ficha { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; overflow-y: auto; }
+        .modal-header { max-width: 950px; margin: auto; display: flex; justify-content: space-between; padding: 15px 20px; border-bottom: 2px solid #eee; align-items: center; }
+
+        /* Abas */
+        .tabs { display: flex; gap: 5px; max-width: 950px; margin: 15px auto; overflow-x: auto; padding: 0 15px; border-bottom: 1px solid #ddd; }
+        .tab-btn { padding: 12px 20px; border: none; background: #eee; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: bold; white-space: nowrap; }
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .form-section { display: none; max-width: 950px; margin: auto; padding: 20px; }
+        .form-section.active { display: block; }
+
+        .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .full { grid-column: span 2; }
+        label { font-size: 0.85em; font-weight: bold; color: #444; margin-bottom: 5px; display: block; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .timeline { background: #fdfdfd; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #eee; }
+        .entry { background: white; padding: 12px; border-bottom: 1px solid #eee; margin-bottom: 8px; border-left: 4px solid var(--secondary); font-size: 0.9em; }
+        
+        .footer-ficha { max-width: 950px; margin: 20px auto; padding: 20px; text-align: right; }
+        .btn-save { background: var(--secondary); color: white; border: none; padding: 15px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <h1>Ação <span>VET</span></h1>
+    <button class="btn-gestor" onclick="acessoGestor()">🔓 Acesso Gestor</button>
+</nav>
+
+<div class="container">
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Pesquisar ficha por animal ou tutor..." onkeyup="filtrarPacientes()">
+    </div>
+    
+    <div class="grid-pacientes" id="listaPacientes"></div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <button class="btn-gestor" id="btnNovo" style="display:none; padding: 15px 40px;" onclick="abrirFicha(null)">+ Iniciar Novo Prontuário</button>
+    </div>
+</div>
+
+<div id="modalFicha" class="modal-ficha">
+    <div class="modal-header">
+        <h2 id="tituloFicha">Prontuário Único</h2>
+        <button onclick="fecharFicha()" style="padding: 10px; cursor: pointer; border-radius: 5px;">✖ Sair da Ficha</button>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="mudarAba(event, 'aba_tutor')">1. Tutor</button>
+        <button class="tab-btn" onclick="mudarAba(event, 'aba_animal')">2. Animal</button>
+        <button class="tab-btn" onclick="mudarAba(event, 'aba_terapeutica')">3. Terapêutica</button>
+        <button class="tab-btn" onclick="mudarAba(event, 'aba_evolucao')">4. Evolução</button>
+    </div>
+
+    <div id="aba_tutor" class="form-section active">
+        <div class="grid-form">
+            <div class="full"><label>Nome do Tutor</label><input type="text" id="f_tutor"></div>
+            <div><label>CPF</label><input type="text" id="f_cpf"></div>
+            <div><label>Renda Mensal</label><input type="number" id="f_renda"></div>
+            <div class="full"><label>Local Atendimento</label><input type="text" id="f_local" value="Mongaguá, SP"></div>
+            <div><label>Data</label><input type="date" id="f_data"></div>
+            <div><label>Hora</label><input type="time" id="f_hora"></div>
+        </div>
+    </div>
+
+    <div id="aba_animal" class="form-section">
+        <div class="grid-form">
+            <div><label>Nome do Animal</label><input type="text" id="f_animal"></div>
+            <div><label>Espécie</label><input type="text" id="f_esp"></div>
+            <div><label>Raça</label><input type="text" id="f_raca"></div>
+            <div><label>Idade Estimada</label><input type="text" id="f_idade"></div>
+        </div>
+    </div>
+
+    <div id="aba_terapeutica" class="form-section">
+        <div class="grid-form" style="background:#f8f9fa; padding:15px; border-radius:8px;">
+            <div class="full"><label>Diagnóstico</label><input type="text" id="f_diag"></div>
+            <div><label>Médico Vet.</label><input type="text" id="m_vet_nome"></div>
+            <div><label>CRMV</label><input type="text" id="m_vet_crmv"></div>
+            <div><label>Medicação</label><input type="text" id="m_desc"></div>
+            <div><label>Horário</label><input type="time" id="m_horario"></div>
+            <div><label>Custo (R$)</label><input type="number" id="m_valor" step="0.01"></div>
+            <div class="full"><button type="button" class="btn-gestor" id="btnAddMed" onclick="addLinha('med')">+ Registrar na Ficha</button></div>
+        </div>
+        <div class="timeline" id="lista_med"></div>
+    </div>
+
+    <div id="aba_evolucao" class="form-section">
+        <div class="grid-form" style="background:#f8f9fa; padding:15px; border-radius:8px;">
+            <div><label>Data</label><input type="date" id="e_data"></div>
+            <div><label>Hora</label><input type="time" id="e_hora"></div>
+            <div><label>Médico Vet.</label><input type="text" id="e_vet_nome"></div>
+            <div><label>CRMV</label><input type="text" id="e_vet_crmv"></div>
+            <div class="full"><label>Relato</label><textarea id="e_relato" rows="3"></textarea></div>
+            <div class="full"><button type="button" class="btn-gestor" id="btnAddEvo" onclick="addLinha('evo')">+ Adicionar Evolução</button></div>
+        </div>
+        <div class="timeline" id="lista_evo"></div>
+    </div>
+
+    <div class="footer-ficha">
+        <button class="btn-save" id="btnSalvar" onclick="salvarProntuario()">💾 Salvar Prontuário</button>
+    </div>
+</div>
+
+<script>
+    const SENHA_MESTRA = "1234";
+    let modoGestor = false;
+    let bancoDados = JSON.parse(localStorage.getItem('acaovet_final')) || [];
+    let fichaAtiva = null;
+
+    function acessoGestor() {
+        if(prompt("Senha do Gestor:") === SENHA_MESTRA) {
+            modoGestor = true;
+            document.getElementById('btnNovo').style.display = 'inline-block';
+            document.getElementById('btnSalvar').style.display = 'inline-block';
+            if(fichaAtiva) statusCampos(false);
+            alert("Modo Gestor Liberado!");
+        }
+    }
+
+    function mudarAba(evt, abaId) {
+        const sections = document.getElementsByClassName("form-section");
+        for (let s of sections) s.classList.remove("active");
+        
+        const btns = document.getElementsByClassName("tab-btn");
+        for (let b of btns) b.classList.remove("active");
+        
+        document.getElementById(abaId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    function abrirFicha(id) {
+        document.getElementById('modalFicha').style.display = 'block';
+        if(id) {
+            fichaAtiva = bancoDados.find(p => p.id === id);
+            carregarDadosFicha(fichaAtiva);
+        } else {
+            fichaAtiva = { id: Date.now(), med: [], evo: [] };
+            limparFicha();
+        }
+        statusCampos(!modoGestor);
+    }
+
+    function carregarDadosFicha(p) {
+        document.getElementById('f_tutor').value = p.tutor || "";
+        document.getElementById('f_animal').value = p.animal || "";
+        document.getElementById('f_diag').value = p.diag || "";
+        document.getElementById('f_cpf').value = p.cpf || "";
+        document.getElementById('f_renda').value = p.renda || "";
+        document.getElementById('f_esp').value = p.esp || "";
+        document.getElementById('f_raca').value = p.raca || "";
+        document.getElementById('f_idade').value = p.idade || "";
+        renderizarTimelines();
+    }
+
+    function addLinha(tipo) {
+        if(tipo === 'med') {
+            const entry = `<b>${document.getElementById('m_horario').value}</b> - ${document.getElementById('m_desc').value} <br> 
+                           <small>Vet: ${document.getElementById('m_vet_nome').value} (CRMV: ${document.getElementById('m_vet_crmv').value}) - R$ ${document.getElementById('m_valor').value}</small>`;
+            fichaAtiva.med.push(entry);
+        } else {
+            const entry = `<b>${document.getElementById('e_data').value} às ${document.getElementById('e_hora').value}</b><br>
+                           <i>${document.getElementById('e_relato').value}</i><br>
+                           <small>Assinado: ${document.getElementById('e_vet_nome').value} (CRMV: ${document.getElementById('e_vet_crmv').value})</small>`;
+            fichaAtiva.evo.push(entry);
+        }
+        renderizarTimelines();
+    }
+
+    function renderizarTimelines() {
+        document.getElementById('lista_med').innerHTML = "<strong>Relatório:</strong>" + fichaAtiva.med.map(m => `<div class="entry">${m}</div>`).join('');
+        document.getElementById('lista_evo').innerHTML = "<strong>Linha do Tempo:</strong>" + fichaAtiva.evo.map(e => `<div class="entry">${e}</div>`).join('');
+    }
+
+    function salvarProntuario() {
+        fichaAtiva.tutor = document.getElementById('f_tutor').value;
+        fichaAtiva.animal = document.getElementById('f_animal').value;
+        fichaAtiva.diag = document.getElementById('f_diag').value;
+        fichaAtiva.cpf = document.getElementById('f_cpf').value;
+        fichaAtiva.renda = document.getElementById('f_renda').value;
+        fichaAtiva.esp = document.getElementById('f_esp').value;
+        fichaAtiva.raca = document.getElementById('f_raca').value;
+        fichaAtiva.idade = document.getElementById('f_idade').value;
+
+        const idx = bancoDados.findIndex(b => b.id === fichaAtiva.id);
+        if(idx > -1) bancoDados[idx] = fichaAtiva;
+        else bancoDados.push(fichaAtiva);
+        
+        localStorage.setItem('acaovet_final', JSON.stringify(bancoDados));
+        alert("Ficha Única Salva!");
+        fecharFicha();
+        renderizarLista();
+    }
+
+    function renderizarLista() {
+        const lista = document.getElementById('listaPacientes');
+        lista.innerHTML = bancoDados.map(p => `
+            <div class="card" onclick="abrirFicha(${p.id})">
+                <h3>🐾 ${p.animal || 'Sem nome'}</h3>
+                <p><b>Tutor:</b> ${p.tutor || 'Não informado'}</p>
+                <small>Diagnóstico: ${p.diag || 'Pendente'}</small>
+            </div>
+        `).join('');
+    }
+
+    function fecharFicha() { document.getElementById('modalFicha').style.display = 'none'; fichaAtiva = null; }
+    function statusCampos(bloqueado) { document.querySelectorAll('input, textarea, select, #btnAddMed, #btnAddEvo').forEach(i => i.disabled = bloqueado); }
+    function limparFicha() { document.querySelectorAll('input, textarea').forEach(i => i.value = ""); renderizarTimelines(); }
+    function filtrarPacientes() {
+        const termo = document.getElementById('searchInput').value.toLowerCase();
+        const filtrados = bancoDados.filter(p => p.tutor?.toLowerCase().includes(termo) || p.animal?.toLowerCase().includes(termo));
+        document.getElementById('listaPacientes').innerHTML = filtrados.map(p => `
+            <div class="card" onclick="abrirFicha(${p.id})">
+                <h3>🐾 ${p.animal}</h3>
+                <p><b>Tutor:</b> ${p.tutor}</p>
+                <small>Diagnóstico: ${p.diag}</small>
+            </div>
+        `).join('');
+    }
+
+    renderizarLista();
+</script>
+</body>
+</html>
